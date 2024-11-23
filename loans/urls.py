@@ -16,17 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from myloans.views import CreateUserView,LoginView,LogoutView
+from myloans.views import *
 from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/user/register/',CreateUserView.as_view(), name ='register'),
-    path('api/login/',LoginView.as_view(), name='login'),
-    path('api/token/',TokenObtainPairView.as_view(),name='access_token'),
-    path('api/token/refresh/',TokenRefreshView.as_view(),name='refresh_token'),
-    path('api-auth',include('rest_framework.urls')),
+    path('api/user/register/', RegisterUserView.as_view(), name='register'),
+    path('api/login/', LoginView.as_view(), name='login'),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # Use custom view
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
+    path('api/logout', LogoutView.as_view(), name='logout'),
     path('api/', include('myloans.urls')),
-    path('api/logout',LogoutView.as_view(), name='logout'),
 ]

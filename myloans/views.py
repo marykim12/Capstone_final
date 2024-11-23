@@ -9,50 +9,55 @@ from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.decorators import api_view
 from django.contrib.auth import authenticate
-from django.contrib import messages
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth.decorators import login_required
 from .models import *
-from .serializers import GuarantorSerializer
-from .serializers import LoanSerializer,CustomerSerializer,PaymentSerializer
+from .serializers import *
 from rest_framework.permissions import IsAdminUser
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_date
-
+from django.utils import timezone
+from datetime import timedelta
 
 
 # Create your views here.
 def index(request):
     return render(request,'index.html')
 
-class CreateUserView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+class RegisterUserView(APIView):
     permission_classes = [AllowAny]
+    def post(self, request):
+        user_serializer = UserSerializer(data=request.data)
+        if user_serializer.is_valid():
+            user = user_serializer.save()
+            return Response({
+                "user": user_serializer.data,
+                "message": "User registered successfully!"
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "errors" : user_serializer.errors,
+            "message": "User registration failed."
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-class UserDetailView(generics.RetrieveUpdateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [AllowAny]
-
-    def get_object(self):
-        return self.request.user
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        user = request.user
-        try:
-            customer = user.customer
-            response.data['customer_id'] = customer.pk
-        except AttributeError:
-            response.data['customer_id'] = None
-        return response
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
 
+        # Add custom claims
+        token['is_admin'] = user.is_staff  # Assuming is_staff indicates admin status
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['is_admin'] = self.user.is_staff  # Add to response body
+        return data
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -60,62 +65,64 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
-
         user = authenticate(username=username, password=password)
 
         if user is not None:
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': "refresh",
-                'access': "access_token",
-                'customer id':"customer_id",
-            }, status=status.HTTP_200_OK)
-        return Response({'error': 'Invalid Credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            try:
+                customer = user.customer
+                refresh = RefreshToken.for_user(user)
+
+                # Include additional information (is_admin)
+                return Response({
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                    'customer_id': customer.customer_id,
+                    'is_admin': user.is_staff,  # Add the is_admin field here
+                }, status=status.HTTP_200_OK)
+            except Customer.DoesNotExist:
+                return Response({"error": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 
-class userDashboardView(generics.DestroyAPIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        user = request.user
-
-        user_data = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'is_staff': user.is_staff,
-        }
-        return (user_data)
-#customers profile
-
-@login_required(login_url='login_user') 
-class customerProfileView(APIView):
-    permission_classes = [IsAuthenticated]
-
-
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
-class CustomerProfileView(APIView):
-    def post(self, request):
-        customer_id = request.data.get('customer_id')
+def customer_profile_detail(request):
         try:
-            customer = Customer.objects.get(customer_id=customer_id)
-            # Update the existing customer
+            customer = request.user.customer
+        except AttributeError:
+            return Response({"error": "You must be logged in as a customer to access this profile."},
+                            status=status.HTTP_403_FORBIDDEN)
+        except Customer.DoesNotExist:
+            return Response({"error": "Customer profile not found."},
+                        status=status.HTTP_404_NOT_FOUND)
+        if request.method == 'GET':
+            data = {
+                "customer_id": customer.customer_id,
+                "contact": customer.contact,
+                "address": customer.address,
+                "firstName": customer.firstName,
+                "lastName": customer.lastName,
+                "middleName": customer.middleName,
+                "isEmployed": customer.isEmployed,
+                "income": customer.income,
+                "loanLimit":customer.calculate_loan_limit(),
+                "guarantor":customer.guarantor,
+                
+            }
+            return Response(data, status=status.HTTP_200_OK)
+        elif request.method == 'PATCH':
             serializer = CustomerSerializer(customer, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Customer.DoesNotExist:
-            # Create a new customer if it doesn't exist
-            serializer = CustomerSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # displays the customers loan
 
-@login_required(login_url='login_user') 
+
 class CustomerLoanListView(generics.ListAPIView):
     serializer_class = LoanSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -124,20 +131,9 @@ class CustomerLoanListView(generics.ListAPIView):
         # Return loans associated with the authenticated customer
         return Loan.objects.filter(customer=self.request.user)
 
-# Adminview
-class AdminLoanListView(generics.ListAPIView):
-    serializer_class = LoanSerializer
-    permission_classes = [IsAdminUser]
-
-    def get_queryset(self):
-        # all loans for admin
-        return Loan.objects.all()
-
 
 
 #creation of customers
-
-
 class CustomerListCreateView(generics.ListCreateAPIView):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
@@ -147,17 +143,18 @@ class CustomerListCreateView(generics.ListCreateAPIView):
 
         serializer.save(user=self.request.user)
         return super().perform_create(serializer)
-
-
-
+    
+    
 
 class CustomerDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
 
+
     def perform_create(self, serializer):
         serializer.save(customer=self.request.user)
+
 
 
 #for viewing 
@@ -182,18 +179,54 @@ class LoanListCreateView(generics.ListCreateAPIView):
     serializer_class = LoanSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-
-        return Loan.objects.filter(Customer=self.request.user.customer)
     def perform_create(self, serializer):
-        #creates losn if user is authenticated
-        serializer.save(customer=self.request.user.customer)
+        try:
+            # Get the current customer
+            customer = self.request.user.customer
+
+            # Validate employment status and income
+            if not customer.isEmployed or not customer.income:
+                raise serializers.ValidationError({"error": "Only employed customers with valid income can apply for loans."})
+
+            # Validate if the loan amount is within the customer's loan limit
+            loan_limit = customer.calculate_loan_limit()
+            if serializer.validated_data['amount'] > loan_limit:
+                raise serializers.ValidationError({"error": "Requested loan exceeds your loan limit."})
+
+            # Check if there are any existing loans that are pending or approved
+            if Loan.objects.filter(customer=customer, status_loan__in=['pending', 'approved']).exists():
+                raise serializers.ValidationError({"error": "You have an existing loan that must be cleared first."})
+
+            # Save the loan object if all checks pass
+            serializer.save(customer=customer)
+
+        except serializers.ValidationError as e:
+            # Log the validation error
+            print(f"Validation Error: {e.detail}")
+            # Reraise the validation error to propagate it to the response
+            raise e
 
 
+    
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def review_loan(request, loan_id):
+    try:
+        loan = Loan.objects.get(id=loan_id)
+        customer = loan.customer
+        # Check eligibility
+        if loan.amount > customer.calculate_loan_limit():
+            loan.status_loan = "declined"
+            loan.save()
+            return Response({"message": "Loan declined. Amount exceeds loan limit."}, status=200)
+        loan.status_loan = "approved"
+        loan.save()
+        return Response({"message": "Loan approved successfully!"}, status=200)
+    except Loan.DoesNotExist:
+        return Response({"error": "Loan not found."}, status=404)
 
 #loans that one person has
-
-
 class LoanDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Loan.objects.all()
     serializer_class =LoanSerializer
@@ -203,104 +236,69 @@ class LoanDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Loan.objects.filter(customer=self.request.user.customer)
 
-#for payment
-
+#for paymenT
 
 class PaymentView(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
 
-    def create(self, request,*args, **kwargs):
-        #get data
+    def create(self, request, *args, **kwargs):
         loan_id = request.data.get("loan")
         amount = request.data.get("amount")
 
-
         try:
+            # Fetch loan
             loan = Loan.objects.get(id=loan_id)
-            Payment = Payment.objects.create(loan=loan,customer=request.user.customer, amount=amount )
-            return Response(PaymentSerializer(Payment).data, status=status.HTTP_201_CREATED)
+
+            # Ensure the loan is not already paid or defaulted
+            if loan.status_loan == 'completed':
+                return Response({"error": "Loan is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if loan.status_loan == 'defaulted':
+                return Response({"error": "Loan has already defaulted."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create the payment
+            payment = Payment.objects.create(
+                loan=loan,
+                amount=amount,
+                status='pending'  # Set to pending initially
+            )
+
+            # Process payment based on amount
+            payment.process_payment()
+
+            return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
         except Loan.DoesNotExist:
-            return Response({"error":"loan not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+def check_and_send_notifications():
+    # Find loans that are nearing the due date (3 days before)
+    loans_nearing_due = Loan.objects.filter(
+        due_date__lte=timezone.now() + timedelta(days=3),
+        status_loan='waiting'
+    )
+
+    for loan in loans_nearing_due:
+        # Send notification to the customer
+        message = f"Your loan (ID: {loan.id}) is due for payment in 3 days. Please make your payment on time."
+        Notification.objects.create(user=loan.customer.user, message=message, loan=loan)
+
+
 
 #def logout_user(request):
     #logout(request)
-    #messages.success(request, ('You are now logged out..'))
-    #return redirect(request, '')
-
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        try:
-            # Get refresh token from request
-            refresh_token = request.data.get("refresh")
-            token = RefreshToken(refresh_token)
-            # Blacklist the token
-            token.blacklist()
-            return Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": "Invalid token or already logged out"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class AdminLoanListView(generics.ListAPIView):
+    serializer_class = LoanSerializer
+    permission_classes = [IsAdminUser]
 
-# Create Guarantor
-@api_view(['POST'])
-def create_guarantor(request):
-    if request.method == 'POST':
-        serializer = GuarantorSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# List all Guarantors
-@api_view(['GET'])
-def list_guarantors(request):
-    if request.method == 'GET':
-        guarantors = Guarantor.objects.all()
-        serializer = GuarantorSerializer(guarantors, many=True)
-        return Response(serializer.data)
-
-# Retrieve a single Guarantor by ID
-@api_view(['GET'])
-def get_guarantor(request, pk):
-    try:
-        guarantor = Guarantor.objects.get(pk=pk)
-    except Guarantor.DoesNotExist:
-        return Response({'error': 'Guarantor not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = GuarantorSerializer(guarantor)
-        return Response(serializer.data)
-
-# Update Guarantor
-@api_view(['PUT'])
-def update_guarantor(request, pk):
-    try:
-        guarantor = Guarantor.objects.get(pk=pk)
-    except Guarantor.DoesNotExist:
-        return Response({'error': 'Guarantor not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'PUT':
-        serializer = GuarantorSerializer(guarantor, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# Delete Guarantor
-@api_view(['DELETE'])
-def delete_guarantor(request, pk):
-    try:
-        guarantor = Guarantor.objects.get(pk=pk)
-    except Guarantor.DoesNotExist:
-        return Response({'error': 'Guarantor not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'DELETE':
-        guarantor.delete()
-        return Response({'message': 'Guarantor deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    def get_queryset(self):
+        # all loans for admin
+        return Loan.objects.all()
 
 
 @api_view(['GET'])
@@ -325,3 +323,18 @@ def admin_dashboard(request):
         "payments": payments_data,
     }
     return Response(data)
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Get refresh token from request
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            # Blacklist the token
+            token.blacklist()
+            return Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Invalid token or already logged out"}, status=status.HTTP_400_BAD_REQUEST)

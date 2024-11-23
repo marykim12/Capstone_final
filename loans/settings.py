@@ -15,9 +15,12 @@ from dotenv import load_dotenv
 from datetime import timedelta
 import dj_database_url
 
+
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+AUTH_USER_MODEL = 'myloans.CustomUser'
 
 
 # Quick-start development settings - unsuitable for production
@@ -151,6 +154,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_TOKEN_CLASSES':('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_BLACKLIST': 'rest_framework_simplejwt.token_blacklist.models.BlacklistedToken'
 }
 
 

@@ -1,27 +1,21 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import CreateUserView,LoginView, CustomerListCreateView, CustomerDetailView,LoanListCreateView, LoanDetailView,PaymentView
 from .views import *
 
 
 router = DefaultRouter()
 router.register(r'payments', PaymentView, basename='payment')
 urlpatterns = [
-    path('user/register/', CreateUserView.as_view(), name='register'),
+    path('user/register/', RegisterUserView.as_view(), name='register'),
     path('api/token/', LoginView.as_view(), name = 'logIn'),
     path('customers/', CustomerListCreateView.as_view(), name='customer-list-create'),
-    path('customers/<int:pk>/', CustomerDetailView.as_view(), name='customer-detail'),
-    path('customers/profile/', CustomerProfileView.as_view(), name='customer_profile'),
+    path('customers/profile/', customer_profile_detail, name="customer_dashboard"),
+    path('customers/profile/<int:customer_id>/', customer_profile_detail, name="customer_profile_detail"),
     path('loans/', LoanListCreateView.as_view(), name='loan-list-create'),
     path('loans/<int:pk>/', LoanDetailView.as_view(), name='loan-detail'),
     path('customers/<int:pk>/loan-limit/', customer_loan_limit, name='customer-loan-limit'),
-    path('guarantors/', list_guarantors, name='list_guarantors'),  # List all guarantors
-    path('guarantors/create/', create_guarantor, name='create_guarantor'),  # Create a new guarantor
-    path('guarantors/<int:pk>/', get_guarantor, name='get_guarantor'),  # Retrieve a guarantor by ID
-    path('guarantors/<int:pk>/update/', update_guarantor, name='update_guarantor'),  # Update a guarantor by ID
-    path('guarantors/<int:pk>/delete/', delete_guarantor, name='delete_guarantor'),  # Delete a guarantor by ID
     path('api/admin/dashboard/', admin_dashboard, name='admin_dashboard'),
-    path('dashboard/', userDashboardView.as_view(), name='dashboard'),
+    path('payment/', PaymentView.as_view, name="payment-detail"),
 
 
   

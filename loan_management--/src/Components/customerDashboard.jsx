@@ -1,60 +1,65 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
+import CustomerProfile from "./CustomerProfile";
+
 function CustomerDashboard() {
     const [customerData, setCustomerData] = useState({});
-    const [error, setError] = useState('');
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
     useEffect(() => {
-        const fetchCustomerData = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch(`http://127.0.0.1:8000/customers/profile/`, {
+                const response = await fetch("http://127.0.0.1:8000/api/customers/profile/", {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+                        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
                     },
                 });
-                if (response.ok) {
+                if (!response.ok) {
+                    const errorDetails = await response.json();
+                    setError(errorDetails.message || "Failed to load data.");
+                } else {
                     const data = await response.json();
                     setCustomerData(data);
-                    console.log("Fetched Customer Data:", data);
-                } else {
-                    console.error("API error:", response.status, response.statusText);
-                    setError('Failed to fetch customer data.');
                 }
             } catch (err) {
-                console.error('Error fetching customer data:', err);
-                setError('An unexpected error occurred.');
+                console.error("Error fetching data:", err);
+                setError("An unexpected error occurred.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchCustomerData();
+        fetchData();
     }, []);
-    if (loading) {
-        return <div>Loading...</div>;
-    }
-    if (error) {
-        return <div style={{ color: 'red' }}>{error}</div>;
-    }
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div className="text-red-500">{error}</div>;
     return (
-        <div className="max-w-2xl mx-auto p-4 bg-white shadow-md rounded">
-            <h1 className="text-2xl font-bold mb-4">Welcome {customerData.firstName || 'Customer'}</h1>
-            <div>
-                {customerData.firstName ? (
-                    <>
-                        <h2 className="text-xl font-semibold mb-2">Profile Information</h2>
-                        <p className="mb-2"><strong>First Name:</strong> {customerData.firstName || 'N/A'}</p>
-                        <p className="mb-2"><strong>Last Name:</strong> {customerData.lastName || 'N/A'}</p>
-                        <p className="mb-2"><strong>Middle Name:</strong> {customerData.middleName || 'N/A'}</p>
-                        <p className="mb-2"><strong>Contact:</strong> {customerData.contact || 'N/A'}</p>
-                        <p className="mb-2"><strong>Address:</strong> {customerData.address || 'N/A'}</p>
-                        <p className="mb-2"><strong>Employment Status:</strong> {customerData.isEmployed ? 'Employed' : 'Unemployed'}</p>
-                        <p className="mb-2"><strong>Income:</strong> Ksh {customerData.income || 'N/A'}</p>
-                        <p className="mb-2"><strong>Guarantor:</strong> {customerData.guarantor || 'N/A'}</p>
-                        <p className="mb-2"><strong>Loan Limit:</strong> Ksh {customerData.loan_limit || 'N/A'}</p>
-                    </>
-                ) : (
-                    <p>No profile data available. Please complete your profile.</p>
-                )}
-            </div>
+        <div className="p-6 max-w-md mx-auto bg-white shadow-lg rounded">
+            <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
+            {!isEditing ? (
+                <div className="mb-6">
+                    <p><strong>Name:</strong> {customerData?.firstName} {customerData?.middleName} {customerData?.lastName}</p>
+                    <p><strong>Contact:</strong> {customerData?.contact}</p>
+                    <p><strong>Address:</strong> {customerData?.address}</p>
+                    <p><strong>Income:</strong> ksh {customerData?.income}</p>
+                    <p><strong>Loan Limit:</strong> {customerData?.loanLimit}</p>
+                    <p><strong>Guarantor:</strong>{customerData?.guarantor}</p>
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        className="bg-rose-400 text-white py-2 px-4 rounded hover:bg-blue-600"
+                    >
+                        Edit Profile
+                    </button>
+                </div>
+            ) : (
+                <CustomerProfile
+                    initialData={customerData}
+                    onSave={(updatedData) => {
+                        setCustomerData(updatedData); // Update the dashboard data
+                        setIsEditing(false); // Close the edit form
+                    }}
+                    onCancel={() => setIsEditing(false)} // Close the form without saving
+                />
+            )}
         </div>
     );
 }

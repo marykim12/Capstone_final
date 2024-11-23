@@ -4,24 +4,26 @@ import user from '../assets/user.jpg';
 import email from '../assets/email.jpg';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
+import { FaIdBadge } from "react-icons/fa";
 
 function Register() {
     const [username, setUsername] = useState('');
     const [emailInput, setEmailInput] = useState('');
     const [passwordInput, setPasswordInput] = useState('');
+    const [nationalID, setNationalID] = useState('')
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
     const navigate = useNavigate();
 
+    
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevent default form submission
-
         try {
             const response = await axios.post('http://127.0.0.1:8000/api/user/register/', {
                 username,
                 email: emailInput,
                 password: passwordInput,
+                national_id: nationalID,
             });
             setSuccessMessage('Registration successful! You can now log in.');
             setError(null); // Clear any previous error
@@ -29,12 +31,10 @@ function Register() {
             setError('Error registering user. Please try again.');
             setSuccessMessage(''); // Clear any previous success message
         }
-        
     };
     const navigateToLogin = () => {
-        navigate('/login');
+        setTimeout(() => navigate('/login'), 2000);
     };
-
     return (
         <div className="container mx-auto p-4">
         <div className="header text-center mb-6">
@@ -75,6 +75,17 @@ function Register() {
                     className="w-full p-2 border border-gray-300 rounded"
                 />
             </div>
+            <div className="input flex items-center space-x-2">
+                <FaIdBadge className="w-10 h-10 object-cover" />
+                <input
+                    type="text"
+                    placeholder="National ID"
+                    value={nationalID}
+                    onChange={(e) => setNationalID(e.target.value)}
+                    required
+                    className="w-full p-2 border border-gray-300 rounded"
+                />
+            </div>
             <button type="submit" className="w-full bg-rose-400 text-white p-2 rounded">Register</button>
             {error && <p className="text-red-500">{error}</p>}
             {successMessage && <p className="text-green-500">{successMessage}</p>}
@@ -83,5 +94,4 @@ function Register() {
     </div>
 );
 };
-
 export default Register;

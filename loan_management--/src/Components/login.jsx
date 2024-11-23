@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import passwordIcon from '../assets/password.jpg';
-import userIcon from '../assets/user.jpg'; // Assuming you have a user icon here
+import userIcon from '../assets/user.jpg';
 
 function Login() {
   const [userName, setUserName] = useState('');
@@ -12,41 +12,33 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     try {
       const response = await axios.post('http://127.0.0.1:8000/api/token/', {
         username: userName,
         password: password,
       });
-  
-      // Extract tokens from the response
-      const { access, refresh, customer_id } = response.data;
-  
-      // Store tokens in localStorage
+    
+      console.log(response.data); // Debug the response
+      const { access, refresh, is_admin } = response.data;
+    
+      if (typeof is_admin !== 'boolean') {
+        throw new Error('Invalid response: Missing or incorrect "is_admin" flag.');
+      }
+    
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-  
-      // Store customer_id if provided
-      if (customer_id) {
-        localStorage.setItem('customer_id', customer_id); // Save customer ID in localStorage
-      } else {
-        console.warn('Customer ID not provided in the login response.');
-      }
-  
-      // Handle roles (if any) from the token
-      const decodedToken = JSON.parse(atob(access.split('.')[1]));
-      if (decodedToken.role) {
-        localStorage.setItem('role', decodedToken.role);
-      }
-  
-      alert("Login successful!");
-      setError('');
-  
-      // Navigate to the homepage or dashboard
-      navigate('/');
+      localStorage.setItem('is_admin', is_admin);
+    
+      navigate(is_admin ? '/admin/dashboard' : '/CustomerDashboard');
+      console.log("Admin:", is_admin); 
+      console.log("Redirecting to:", is_admin ? '/admin/dashboard' : '/CustomerDashboard');
+
     } catch (err) {
-      setError("Invalid credentials. Please try again.");
-      console.error("Login error:", err);
+      setError(err.response?.data?.error || 'Invalid credentials. Please try again.');
+      console.error('Login error:', err);
     }
+    
   };
 
   return (

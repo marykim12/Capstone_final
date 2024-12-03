@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render,redirect
 from .serializers import UserSerializer
 from rest_framework import generics, permissions
 from rest_framework import status
@@ -20,6 +20,9 @@ from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
+import stripe
+from django.conf import settings
+from django.http import JsonResponse
 
 
 # Create your views here.
@@ -179,6 +182,12 @@ class LoanListCreateView(generics.ListCreateAPIView):
     serializer_class = LoanSerializer
     permission_classes = [IsAuthenticated]
 
+
+    def get_queryset(self):
+        # Filter loans by the logged-in user
+        return Loan.objects.filter(customer=self.request.user.customer)
+
+
     def perform_create(self, serializer):
         try:
             # Get the current customer
@@ -226,7 +235,7 @@ def review_loan(request, loan_id):
     except Loan.DoesNotExist:
         return Response({"error": "Loan not found."}, status=404)
 
-#loans that one person has
+
 class LoanDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Loan.objects.all()
     serializer_class =LoanSerializer
@@ -235,61 +244,77 @@ class LoanDetailView(generics.RetrieveUpdateDestroyAPIView):
 #user cannot delete,view or update alon that does not belong to them
     def get_queryset(self):
         return Loan.objects.filter(customer=self.request.user.customer)
+    
+    overdue_loans = Loan.objects.filter(
+    date_issued__lt=timezone.now() - timedelta(days=30),
+    status_loan='approved'
+)
 
-#for paymenT
 
-class PaymentView(viewsets.ModelViewSet):
-    queryset = Payment.objects.all()
-    serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        loan_id = request.data.get("loan")
-        amount = request.data.get("amount")
+# This is your test secret API key.
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
+
+class StripeCheckoutView(APIView):
+    def post(self,request, loan_id):
         try:
-            # Fetch loan
-            loan = Loan.objects.get(id=loan_id)
-
-            # Ensure the loan is not already paid or defaulted
-            if loan.status_loan == 'completed':
-                return Response({"error": "Loan is already paid."}, status=status.HTTP_400_BAD_REQUEST)
-
-            if loan.status_loan == 'defaulted':
-                return Response({"error": "Loan has already defaulted."}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Create the payment
-            payment = Payment.objects.create(
-                loan=loan,
-                amount=amount,
-                status='pending'  # Set to pending initially
+            loan = Loan.objects.get(id=loan_id, customer=request.user.customer)
+            checkout_session = stripe.checkout.Session.create(
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'product_data': {
+                                'name': f"Loan Repayment: {loan.loan_id}",
+                            },
+                             'unit_amount': int(loan.amount * 100),  # Amount in cents
+                     },
+                        'quantity': 1,
+                    },
+                ],
+                payment_method_types=['card'],
+                mode='payment',
+                success_url="http://localhost:3000/success",
+                cancel_url="http://localhost:3000/cancel",
             )
-
-            # Process payment based on amount
-            payment.process_payment()
-
-            return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
-
+            return redirect(checkout_session.url)
         except Loan.DoesNotExist:
-            return Response({"error": "Loan not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Loan not found or unauthorized access."}, status=404)
+        except Exception as e:
+            return str(e)
         
-
-def check_and_send_notifications():
-    # Find loans that are nearing the due date (3 days before)
-    loans_nearing_due = Loan.objects.filter(
-        due_date__lte=timezone.now() + timedelta(days=3),
-        status_loan='waiting'
-    )
-
-    for loan in loans_nearing_due:
-        # Send notification to the customer
-        message = f"Your loan (ID: {loan.id}) is due for payment in 3 days. Please make your payment on time."
-        Notification.objects.create(user=loan.customer.user, message=message, loan=loan)
+    def create_checkout_session(request, loan_id):
+        loan = get_object_or_404(Loan, id=loan_id)
+        # Create checkout session logic here
+        return JsonResponse({'message': 'Checkout session created'})
+            
 
 
+          
+@api_view(['Get'])
+@permission_classes([IsAuthenticated])
+def loan_and_payment_details(request):
+    customer = request.user.customer
+    loans = Loan.objects.filter(customer=customer)
+    loan_data = LoanSerializer(loans, many=True).data
 
-#def logout_user(request):
-    #logout(request)
+    for loan in loan_data:
+        payment = Payment.object.filter(loan__loan_id=loan['loan_id'])
+        loan['payments'] = PaymentSerializer(payment,many=True).data
+    return Response(loan_data, status=200)  
+
+##loans_nearing_due = Loan.objects.filter(
+        #due_date__lte=timezone.now() + timedelta(days=3),
+        #tatus_loan='waiting'
+    #)
+
+    #for loan in loans_nearing_due:
+        ## Send notification to the customer
+        #message = f"Your loan (ID: {loan.id}) is due for payment in 3 days. Please make your payment on time."
+        #Notification.objects.create(user=loan.customer.user, message=message, loan=loan)
+
+
 
 
 class AdminLoanListView(generics.ListAPIView):
@@ -316,11 +341,22 @@ def admin_dashboard(request):
     payments = Payment.objects.all()
     payments_data = PaymentSerializer(payments, many=True).data
 
+    #for overdue loans
+    loans_data = []
+    for loan in loans:
+        loan_dict = LoanSerializer(loan).data
+        # Calculate due date dynamically
+        loan_dict['due_date'] = (loan.date_issued + timedelta(days=30)).strftime('%Y-%m-%d')
+        loans_data.append(loan_dict)
+
+
+
     # Aggregate and return the data
     data = {
         "customers": customers_data,
         "loans": loans_data,
         "payments": payments_data,
+        
     }
     return Response(data)
 

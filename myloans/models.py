@@ -42,7 +42,6 @@ class Loan(models.Model):
     status_loan = models.CharField(max_length=20,default="pending")
     purpose = models.CharField(max_length=20)
     date_issued = models.DateField()
-    date_issued = models.DateTimeField(default=timezone.now)
     total_repayment = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def calculate_total_repayment(self):
@@ -64,6 +63,8 @@ class Loan(models.Model):
 
     def is_overdue(self):
         return timezone.now() > self.due_date
+    
+    
 
 
 
@@ -103,7 +104,7 @@ class Payment(models.Model):
         self.save()
 
     def __str__(self):
-        return f"Payment of {self.amount} for Loan ID {self.loan.id}"
+        return f"Payment of {self.amount} for Loan ID {self.loan.loan_id}"
     
     
     

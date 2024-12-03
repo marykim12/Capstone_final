@@ -55,23 +55,29 @@ class CustomerSerializer(serializers.ModelSerializer):
         return value
 
 class LoanSerializer(serializers.ModelSerializer):
+    customer_id = serializers.CharField(source='customer.customer_id')
     
 
     class Meta:
         model = Loan
-        fields = ['loan_id', 'amount', 'interest_rate', 'status_loan', 'purpose', 'date_issued', 'total_repayment']
+        fields = ['loan_id', 'amount', 'interest_rate', 'status_loan', 'purpose', 'date_issued', 'total_repayment', 'customer_id']
 
   
 
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    customer_id = serializers.CharField(source='loan.customer.customer_id')
+
     class Meta:
         model= Payment
-        fields = '__all__'
+        fields = ['id', 'amount', 'date', 'loan', 'status', 'customer_id']
 
 
-
+class NotificationSerializer(serializers.ModelSerializer):
+     class Meta:
+         model=Notification
+         fieldsv = '__all__'
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()

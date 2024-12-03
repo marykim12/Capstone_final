@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
-function Navbar() {
+function Navbar({loan_id}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
+  
   useEffect(() => {
     // Check if the user is logged in (e.g., via a token in localStorage)
     const token = localStorage.getItem('access_token'); // Adjust the key based on your setup
@@ -36,7 +36,11 @@ function Navbar() {
           <Link to="/LoanForm" className="text-white hover:bg-gray-700 px-3 py-2 rounded">
             Loan Application
           </Link>
-          <Link to="/Payment" className="text-white hover:bg-gray-700 px-3 py-2 rounded">
+          <Link to="/Loan" className="text-white hover:bg-gray-700 px-3 py-2 rounded">
+            Loan 
+          </Link>
+
+          <Link to={`/payment/${loan_id}`} className="text-white hover:bg-gray-700 px-3 py-2 rounded">
             Payment
           </Link>
           <Link to="/CustomerProfile" className="text-white hover:bg-gray-700 px-3 py-2 rounded">

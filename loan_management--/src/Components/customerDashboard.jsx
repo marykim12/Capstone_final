@@ -32,7 +32,16 @@ function CustomerDashboard() {
     }, []);
     if (loading) return <div>Loading...</div>;
     if (error) return <div className="text-red-500">{error}</div>;
-    return (
+    return (<div
+        className="relative flex items-center justify-center h-screen bg-cover bg-center w-full"
+        style={{ backgroundImage: 'url(/src/assets/loan_homepage.jpg)' }}
+      >
+        
+        <div className="absolute inset-0 bg-black opacity-50"></div>
+
+        
+        <div className="z-10 container mx-auto p-2">
+    
         <div className="p-6 max-w-md mx-auto bg-white shadow-lg rounded">
             <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
             {!isEditing ? (
@@ -60,6 +69,8 @@ function CustomerDashboard() {
                     onCancel={() => setIsEditing(false)} // Close the form without saving
                 />
             )}
+            </div>
+        </div>
         </div>
     );
 }

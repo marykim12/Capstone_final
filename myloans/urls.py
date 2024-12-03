@@ -4,7 +4,7 @@ from .views import *
 
 
 router = DefaultRouter()
-router.register(r'payments', PaymentView, basename='payment')
+
 urlpatterns = [
     path('user/register/', RegisterUserView.as_view(), name='register'),
     path('api/token/', LoginView.as_view(), name = 'logIn'),
@@ -14,8 +14,9 @@ urlpatterns = [
     path('loans/', LoanListCreateView.as_view(), name='loan-list-create'),
     path('loans/<int:pk>/', LoanDetailView.as_view(), name='loan-detail'),
     path('customers/<int:pk>/loan-limit/', customer_loan_limit, name='customer-loan-limit'),
-    path('api/admin/dashboard/', admin_dashboard, name='admin_dashboard'),
-    path('payment/', PaymentView.as_view, name="payment-detail"),
+    path('admin/dashboard/', admin_dashboard, name='admin_dashboard'),
+    path('payment/',StripeCheckoutView.as_view(), name='make_payment'),
+    path('loans/<int:loan_id>/create-checkout-session/', StripeCheckoutView.as_view(), name='create-checkout-session'),
 
 
   

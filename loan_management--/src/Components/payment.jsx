@@ -1,86 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 
-const Payment = ({ loan_id }) => {
-  const [amount, setAmount] = useState('');  // Track payment amount
-  const [error, setError] = useState('');    // For error messages
-  const [paymentStatus, setPaymentStatus] = useState('');  // For displaying payment status
+const Payment = () => {
+  const { loan_id } = useParams();
+  const [loan, setLoan] = useState(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Load Stripe key
+  const stripePromise = loadStripe("pk_test_51QP1ZqF8O7lYujcLBGCm9uth790bcBC6Z2TfUtLrhl2qx1b8S6L6fnpQoaNwpx5qdBGxsjCxM8Rhyp9i3PnH0hbL001ikr2zLy");
 
-    const token = localStorage.getItem('access_token');
-    
-    if (!amount || parseFloat(amount) <= 0) {
-      setError('Please enter a valid amount');
-      return;
-    }
+  // Fetch loan details when the component mounts
+  useEffect(() => {
+    setIsLoading(true);
+    axios.get(`http://127.0.0.1:8000
+      /api/loans/${loan_id}/`)
+      .then((response) => {
+        setLoan(response.data);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        setError("Failed to fetch loan details.");
+        setIsLoading(false);
+      });
+  }, [loan_id]);
 
+  // Handle the payment submission
+  const handlePayment = async () => {
     try {
-      const response = await axios.post(
-        `http://127.0.0.1:8000/api/payments/`,
-        {
-          loan: loan_id,
-          amount: amount,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      setIsLoading(true);
 
-      if (response.status === 201) {
-        setPaymentStatus('Payment Successful');
-      } else {
-        setPaymentStatus('Payment Failed');
+      // Request to create a checkout session
+      const { data } = await axios.post(`http://127.0.0.1:8000/api/loans/${loan_id}/create-checkout-session/`);
+
+      // Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+
+      if (error) {
+        setError("Payment failed. Please try again.");
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error submitting payment:', error);
-      setError('An error occurred. Please try again.');
+    } catch (err) {
+      setError("Error creating payment session.");
+      setIsLoading(false);
     }
   };
 
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>{error}</div>;
+
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow-md mt-8">
-      <h2 className="text-2xl font-semibold text-center">Make a Payment</h2>
-      <form onSubmit={handleSubmit}>
-        {/* Loan ID field */}
-        <div className="mb-4">
-          <label htmlFor="loan_id" className="block text-sm font-medium text-gray-700">Loan ID</label>
-          <input
-            type="text"
-            name="loan_id"
-            value={loan_id}  
-            disabled   
-            className="mt-1 p-2 block w-full border border-gray-300 rounded-md"
-          />
+    <div className="payment-container">
+      <h2>Loan Payment</h2>
+      {loan ? (
+        <div>
+          <h3>Loan ID: {loan.loan_id}</h3>
+          <p>Amount Due: ${loan.amount}</p>
+          <button onClick={handlePayment}>Pay Now</button>
         </div>
-
-        {/* Amount field */}
-        <div className="mb-4">
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
-          <input
-            type="number"
-            name="amount"
-            value={amount}  // Bind value to amount state
-            onChange={(e) => setAmount(e.target.value)}  // Update state on input change
-            required
-            className="mt-1 p-2 block w-full border border-gray-300 rounded-md"
-          />
-        </div>
-
-        {/* Submit button */}
-        <button type="submit" className="w-full py-2 px-4 bg-rose-400 text-white rounded-md hover:bg-gray-400">
-          Submit Payment
-        </button>
-      </form>
-
-      {/* Displaying status or error */}
-      {paymentStatus && <p className="text-center text-rose-400 mt-4">{paymentStatus}</p>}
-      {error && <p className="text-center text-red-500 mt-4">{error}</p>}
+      ) : (
+        <div>No loan found.</div>
+      )}
     </div>
   );
-}
+};
 
-export default Payment;
+const StripePaymentWrapper = () => {
+  return (
+    <Elements stripe={loadStripe("pk_test_51QP1ZqF8O7lYujcLBGCm9uth790bcBC6Z2TfUtLrhl2qx1b8S6L6fnpQoaNwpx5qdBGxsjCxM8Rhyp9i3PnH0hbL001ikr2zLy")}>
+      <Payment />
+    </Elements>
+  );
+};
+
+export default StripePaymentWrapper;

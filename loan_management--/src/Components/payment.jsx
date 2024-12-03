@@ -1,55 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 
 const Payment = () => {
   const { loan_id } = useParams();
   const [loan, setLoan] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  // Load Stripe key
-  const stripePromise = loadStripe("pk_test_51QP1ZqF8O7lYujcLBGCm9uth790bcBC6Z2TfUtLrhl2qx1b8S6L6fnpQoaNwpx5qdBGxsjCxM8Rhyp9i3PnH0hbL001ikr2zLy");
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   // Fetch loan details when the component mounts
   useEffect(() => {
     setIsLoading(true);
-    axios.get(`http://127.0.0.1:8000
-      /api/loans/${loan_id}/`)
+    axios
+      .get(`http://127.0.0.1:8000/api/loans/${loan_id}/`)
       .then((response) => {
         setLoan(response.data);
         setIsLoading(false);
       })
       .catch((error) => {
-        setError("Failed to fetch loan details.");
+        setError('Failed to fetch loan details.');
         setIsLoading(false);
       });
   }, [loan_id]);
 
-  // Handle the payment submission
+  // Handle payment submission
   const handlePayment = async () => {
+    if (!phoneNumber) {
+      setError('Please enter your phone number.');
+      return;
+    }
+
     try {
       setIsLoading(true);
 
-      // Request to create a checkout session
-      const { data } = await axios.post(`http://127.0.0.1:8000/api/loans/${loan_id}/create-checkout-session/`);
+      // Send payment request to the backend
+      const response = await axios.post(
+        `http://127.0.0.1:8000/api/loans/${loan_id}/mpesa-payment/`,
+        {
+          phone_number: phoneNumber,
+          amount: loan.amount,
+        }
+      );
 
-      // Redirect to Stripe Checkout
-      const stripe = await stripePromise;
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
+      const { message } = response.data;
 
-      if (error) {
-        setError("Payment failed. Please try again.");
-        setIsLoading(false);
-      }
+      setIsLoading(false);
+      alert(message); // Notify user about the payment status
     } catch (err) {
-      setError("Error creating payment session.");
+      setError('Payment initiation failed. Please try again.');
       setIsLoading(false);
     }
   };
@@ -64,6 +63,12 @@ const Payment = () => {
         <div>
           <h3>Loan ID: {loan.loan_id}</h3>
           <p>Amount Due: ${loan.amount}</p>
+          <input
+            type="tel"
+            placeholder="Enter Phone Number"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+          />
           <button onClick={handlePayment}>Pay Now</button>
         </div>
       ) : (
@@ -73,12 +78,4 @@ const Payment = () => {
   );
 };
 
-const StripePaymentWrapper = () => {
-  return (
-    <Elements stripe={loadStripe("pk_test_51QP1ZqF8O7lYujcLBGCm9uth790bcBC6Z2TfUtLrhl2qx1b8S6L6fnpQoaNwpx5qdBGxsjCxM8Rhyp9i3PnH0hbL001ikr2zLy")}>
-      <Payment />
-    </Elements>
-  );
-};
-
-export default StripePaymentWrapper;
+export default Payment;

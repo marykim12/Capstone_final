@@ -1,4 +1,4 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render
 from .serializers import UserSerializer
 from rest_framework import generics, permissions
 from rest_framework import status
@@ -19,11 +19,13 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from datetime import timedelta
-import stripe
+from datetime import datetime,timedelta
 from django.conf import settings
 from django.http import JsonResponse
-
+import requests
+from django.conf import settings
+import base64
+from django.views.decorators.csrf import csrf_exempt
 
 # Create your views here.
 def index(request):
@@ -253,43 +255,89 @@ class LoanDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # This is your test secret API key.
-stripe.api_key = settings.STRIPE_SECRET_KEY
 
+def generate_mpesa_access_token():
+    url = f"{settings.MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials"
+    response = requests.get(url, auth=(settings.MPESA_CONSUMER_KEY, settings.MPESA_CONSUMER_SECRET))
+    token = response.json().get("access_token")
+    return token
 
-class StripeCheckoutView(APIView):
-    def post(self,request, loan_id):
-        try:
-            loan = Loan.objects.get(id=loan_id, customer=request.user.customer)
-            checkout_session = stripe.checkout.Session.create(
-                line_items=[
-                    {
-                        'price_data': {
-                            'currency': 'usd',
-                            'product_data': {
-                                'name': f"Loan Repayment: {loan.loan_id}",
-                            },
-                             'unit_amount': int(loan.amount * 100),  # Amount in cents
-                     },
-                        'quantity': 1,
-                    },
-                ],
-                payment_method_types=['card'],
-                mode='payment',
-                success_url="http://localhost:3000/success",
-                cancel_url="http://localhost:3000/cancel",
-            )
-            return redirect(checkout_session.url)
-        except Loan.DoesNotExist:
-            return Response({"error": "Loan not found or unauthorized access."}, status=404)
-        except Exception as e:
-            return str(e)
+def lipa_na_mpesa(phone_number, amount):
+    # Generate access token
+    access_token = generate_mpesa_access_token()
+    
+    # Prepare the request
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    password = base64.b64encode((settings.MPESA_SHORTCODE + settings.MPESA_PASSKEY + timestamp).encode()).decode()
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "BusinessShortCode": settings.MPESA_SHORTCODE,
+        "Password": password,
+        "Timestamp": timestamp,
+        "TransactionType": "CustomerPayBillOnline",
+        "Amount": amount,
+        "PartyA": phone_number,  # Customer's phone number
+        "PartyB": settings.MPESA_SHORTCODE,
+        "PhoneNumber": phone_number,
+        "CallBackURL": settings.MPESA_CALLBACK_URL,
+        "AccountReference": "Loan Payment",
+        "TransactionDesc": "Payment for Loan",
+    }
+    url = f"{settings.MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest"
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
+
+@csrf_exempt
+def mpesa_callback(request):
+    if request.method == "POST":
+        mpesa_response = json.loads(request.body)
         
-    def create_checkout_session(request, loan_id):
-        loan = get_object_or_404(Loan, id=loan_id)
-        # Create checkout session logic here
-        return JsonResponse({'message': 'Checkout session created'})
-            
+        # Extract relevant data (e.g., payment status)
+        result_code = mpesa_response['Body']['stkCallback']['ResultCode']
+        result_description = mpesa_response['Body']['stkCallback']['ResultDesc']
+        
+        if result_code == 0:
+            # Payment successful
+            # Update loan payment record
+            pass
+        else:
+            # Payment failed
+            pass
+        
+        return JsonResponse({"status": "success"})
+    return JsonResponse({"error": "Invalid request method"}, status=400)
 
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mpesa_payment(request, loan_id):
+    try:
+        # Retrieve the loan
+        loan = Loan.objects.get(id=loan_id, customer=request.user.customer)
+
+        # Extract payment details
+        phone_number = request.data.get('phone_number')
+        amount = request.data.get('amount')
+
+        if not phone_number or not amount:
+            return Response({"error": "Phone number and amount are required."}, status=400)
+
+        # Initiate M-Pesa STK Push
+        mpesa_response = lipa_na_mpesa(phone_number, amount)
+
+        # Process the response from M-Pesa
+        if mpesa_response.get("ResponseCode") == "0":
+            return Response({"message": "Payment request sent to your phone. Complete it to proceed."})
+        else:
+            return Response({"error": mpesa_response.get("ResponseDescription", "Payment initiation failed.")}, status=400)
+
+    except Loan.DoesNotExist:
+        return Response({"error": "Loan not found or not associated with the logged-in customer."}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
 
           
 @api_view(['Get'])

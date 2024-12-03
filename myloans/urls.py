@@ -15,9 +15,8 @@ urlpatterns = [
     path('loans/<int:pk>/', LoanDetailView.as_view(), name='loan-detail'),
     path('customers/<int:pk>/loan-limit/', customer_loan_limit, name='customer-loan-limit'),
     path('admin/dashboard/', admin_dashboard, name='admin_dashboard'),
-    path('payment/',StripeCheckoutView.as_view(), name='make_payment'),
-    path('loans/<int:loan_id>/create-checkout-session/', StripeCheckoutView.as_view(), name='create-checkout-session'),
-
+    path('mpesa-callback/', mpesa_callback, name='mpesa-callback'),
+    path('loans/<int:loan_id>/mpesa-payment/', mpesa_payment, name='mpesa-payment'),
 
   
     path('',include(router.urls)),

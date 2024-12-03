@@ -16,7 +16,6 @@ import Logout from './Components/logOut';
 import CustomerDashboard from './Components/customerDashboard';
 import AdminDashboard from './Components/adminDashboard';
 
-const stripePromise = loadStripe("pk_test_51QP1ZqF8O7lYujcLBGCm9uth790bcBC6Z2TfUtLrhl2qx1b8S6L6fnpQoaNwpx5qdBGxsjCxM8Rhyp9i3PnH0hbL001ikr2zLy");
 
 const ProtectedRoute = ({ children, isAllowed }) => {
   const accessToken = localStorage.getItem('access_token');
@@ -55,11 +54,7 @@ function App() {
           <Route path="/Loan" element={<Loan />} />
           <Route
             path="/payment/:loan_id"
-            element={
-              <Elements stripe={stripePromise} >
-                <Payment />
-              </Elements>
-            }
+            element={<Payment />}
           />
 
           {/* Customer Profile Route */}

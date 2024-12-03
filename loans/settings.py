@@ -14,6 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 import dj_database_url
+import os 
 
 
 load_dotenv()
@@ -27,12 +28,18 @@ AUTH_USER_MODEL = 'myloans.CustomUser'
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6%wer@_%je*egrpm=n2ke@ik_-t(6tt!u1(8sly*za-1en16io'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS").split(",")
+
+
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(",")
+
+
+
 
 
 # Application definition
@@ -52,12 +59,13 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -89,14 +97,11 @@ WSGI_APPLICATION = 'loans.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'loans_db',
-        'USER':'Kim',
-        'PASSWORD':'remember',
-        'HOST':'localhost',
-        'PORT':'5432',
-    }
+    'default':dj_database_url.config(
+        default=os.getenv("DATABASE_URL"),
+        conn_max_age=600
+        
+    )
 }
 
 
@@ -134,7 +139,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -164,4 +170,11 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 
-STRIPE_SECRET_KEY ='sk_test_51QP1ZqF8O7lYujcLye1RtxaPAgYyC0Sgv84bUMC0DUoggNTSaFMmFAOpcmyrVTdsPrgVzvIWv90Yt0J5Fy6BWgpd00WMWBlBz5'
+#STRIPE_SECRET_KEY ='sk_test_51QP1ZqF8O7lYujcLye1RtxaPAgYyC0Sgv84bUMC0DUoggNTSaFMmFAOpcmyrVTdsPrgVzvIWv90Yt0J5Fy6BWgpd00WMWBlBz5'
+
+MPESA_CONSUMER_KEY = os.getenv("MPESA_CONSUMER_KEY")
+MPESA_CONSUMER_SECRET = os.getenv("MPESA_CONSUMER_SECRET")
+MPESA_BASE_URL = os.getenv("MPESA_BASE_URL")  # Use this for sandbox
+MPESA_SHORTCODE = os.getenv("MPESA_SHORTCODE")  # Use the test shortcode from Dara6nkhoP3AlqV2QogFoeWGRgEAAZSWdTlOMlhvjXuvzPniqBizVBRs0kLgGasQi3J"ja
+MPESA_PASSKEY = os.getenv("MPESA_PASSKEY")
+MPESA_CALLBACK_URL = os.getenv("MPESA_CALLBACK_URL")

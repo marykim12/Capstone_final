@@ -52,7 +52,7 @@ function Register() {
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Username Field */}
                     <div className="flex items-center border-b border-gray-300 py-2">
-                      <img src="/user.jpg" alt="Username" className="h-6 w-6 mr-3" />
+                      <img src="/assets/user.jpg" alt="Username" className="h-6 w-6 mr-3" />
                       <input
                         type="text"
                         placeholder="Username"
@@ -65,7 +65,7 @@ function Register() {
           
                     {/* Email Field */}
                     <div className="flex items-center border-b border-gray-300 py-2">
-                      <img src="/email.jpg" alt="Email" className="h-6 w-6 mr-3" />
+                      <img src="/assets/email.jpg" alt="Email" className="h-6 w-6 mr-3" />
                       <input
                         type="email"
                         placeholder="Email"
@@ -78,7 +78,7 @@ function Register() {
           
                     {/* Password Field */}
                     <div className="flex items-center border-b border-gray-300 py-2">
-                      <img src="/password.jpg" alt="Password" className="h-6 w-6 mr-3" />
+                      <img src="/assets/password.jpg" alt="Password" className="h-6 w-6 mr-3" />
                       <input
                         type="password"
                         placeholder="Password"

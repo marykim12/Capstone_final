@@ -57,7 +57,7 @@ function Login() {
       <form onSubmit={handleLogin} className="space-y-6">
         {/* Username Field */}
         <div className="flex items-center border-b border-gray-300 py-2">
-          <img src={userIcon} alt="User Icon" className="h-6 w-6 mr-3" />
+          <img src="/assets/user.jpg" alt="User Icon" className="h-6 w-6 mr-3" />
           <input
             type="text"
             placeholder="Username"
@@ -70,7 +70,7 @@ function Login() {
 
         {/* Password Field */}
         <div className="flex items-center border-b border-gray-300 py-2">
-          <img src={passwordIcon} alt="Password Icon" className="h-6 w-6 mr-3" />
+          <img src="/assets/password.jpg" alt="Password Icon" className="h-6 w-6 mr-3" />
           <input
             type="password"
             placeholder="Password"

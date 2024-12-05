@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import passwordIcon from '../assets/password.jpg';
-import userIcon from '../assets/user.jpg';
 
 function Login() {
   const [userName, setUserName] = useState('');
@@ -44,7 +42,7 @@ function Login() {
   return (
     <div
   className="relative flex items-center justify-center min-h-screen bg-cover bg-center w-full"
-  style={{ backgroundImage: "url(/src/assets/loan_homepage.jpg)" }}
+  style={{ backgroundImage: "url(/loan_homepage.jpg)" }}
 >
   {/* Background Overlay */}
   <div className="absolute inset-0 bg-black opacity-50"></div>

@@ -20,7 +20,7 @@ function LoanApplication() {
         // Fetch loan limit and customer details
         const fetchCustomerDetails = async () => {
             try {
-                const response = await axios.get('http://127.0.0.1:8000/api/customers/profile/', {
+                const response = await axios.get('https://capstone-final-backend-7dup.onrender.comapi/customers/profile/', {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem('access_token')}`, 
                     },
@@ -83,7 +83,7 @@ function LoanApplication() {
     
         try {
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/loans/',
+                'https://capstone-final-backend-7dup.onrender.comapi/loans/',
                 {
                     amount: parseFloat(amount),  // Ensure this is numeric
                     purpose,

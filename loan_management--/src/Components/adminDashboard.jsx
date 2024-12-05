@@ -13,7 +13,7 @@ const AdminDashboard = () => {
     }
 
     axios
-      .get("http://127.0.0.1:8000/api/admin/dashboard/", {
+      .get("https://capstone-final-backend-7dup.onrender.comapi/admin/dashboard/", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },

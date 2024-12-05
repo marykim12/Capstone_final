@@ -12,7 +12,7 @@ const Loan = ({ loan_id }) => {
       try {
         const token = localStorage.getItem('access_token');
         if (!token) throw new Error('Authentication token not found');
-        const response = await axios.get('http://127.0.0.1:8000/api/loans/', {
+        const response = await axios.get('https://capstone-final-backend-7dup.onrender.comapi/loans/', {
           headers: {
             Authorization: `Bearer ${token}`,
           },

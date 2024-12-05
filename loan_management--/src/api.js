@@ -2,7 +2,7 @@ import axiox from 'axios';
 import { ACCESS_TOKEN } from './constants';
 import axios from 'axios';
 
-const apiUrl = 'http://127.0.0.1:8000/'
+const apiUrl = 'https://capstone-final-backend-7dup.onrender.com'
 
 const api = axios.create({
     baseURL : import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl,

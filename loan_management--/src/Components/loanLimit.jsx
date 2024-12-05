@@ -7,7 +7,7 @@ function loanLimit() {
     useEffect(() => {
         const fetchLoanLimit = async () => {
             try{
-                const response = await fetch('http://127.0.0.1:8000/api/loan-limit/',{
+                const response = await fetch('https://capstone-final-backend-7dup.onrender.comapi/loan-limit/',{
                    headers: {
                     '`Authorization': `Bearer ${localStorage.getItem('access')},`
                    } 

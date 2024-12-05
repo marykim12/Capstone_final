@@ -13,7 +13,7 @@ const Payment = () => {
   useEffect(() => {
     setIsLoading(true);
     axios
-      .get(`http://127.0.0.1:8000/api/loans/${loan_id}/`)
+      .get(`https://capstone-final-backend-7dup.onrender.comapi/loans/${loan_id}/`)
       .then((response) => {
         setLoan(response.data);
         setIsLoading(false);
@@ -36,7 +36,7 @@ const Payment = () => {
 
       // Send payment request to the backend
       const response = await axios.post(
-        `http://127.0.0.1:8000/api/loans/${loan_id}/mpesa-payment/`,
+        `https://capstone-final-backend-7dup.onrender.comapi/loans/${loan_id}/mpesa-payment/`,
         {
           phone_number: phoneNumber,
           amount: loan.amount,

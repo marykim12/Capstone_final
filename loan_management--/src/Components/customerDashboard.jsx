@@ -9,7 +9,7 @@ function CustomerDashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch("http://127.0.0.1:8000/api/customers/profile/", {
+                const response = await fetch("https://capstone-final-backend-7dup.onrender.comapi/customers/profile/", {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem("access_token")}`,
                     },

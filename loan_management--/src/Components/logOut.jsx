@@ -7,7 +7,7 @@ const Logout = ({ onLogout }) => {
   const handleLogout = async () => {
     try {
       // Call logout endpoint if necessary
-      await fetch('http://127.0.0.1:8000/api/logout', {
+      await fetch('https://capstone-final-backend-7dup.onrender.comapi/logout', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,

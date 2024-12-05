@@ -31,7 +31,7 @@ function CustomerProfile({ initialData, onSave, onCancel }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         axios
-            .patch("http://127.0.0.1:8000/api/customers/profile/", formData, {
+            .patch("https://capstone-final-backend-7dup.onrender.comapi/customers/profile/", formData, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
                 },

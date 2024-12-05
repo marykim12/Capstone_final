@@ -12,7 +12,7 @@ function Login() {
     e.preventDefault();
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/token/', {
+      const response = await axios.post('https://capstone-final-backend-7dup.onrender.comapi/token/', {
         username: userName,
         password: password,
       });

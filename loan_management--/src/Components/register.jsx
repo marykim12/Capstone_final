@@ -16,7 +16,7 @@ function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevent default form submission
         try {
-            const response = await axios.post('http://127.0.0.1:8000/api/user/register/', {
+            const response = await axios.post('https://capstone-final-backend-7dup.onrender.comapi/user/register/', {
                 username,
                 email: emailInput,
                 password: passwordInput,

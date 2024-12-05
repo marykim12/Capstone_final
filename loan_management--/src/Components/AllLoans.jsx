@@ -10,7 +10,7 @@ const AllLoans = () => {
     const fetchLoans = async () => {
       try{
         const token = localStorage.getItem('access');
-        const response = await axios.get('http://127.0.0.1:8000/api/loans/',{
+        const response = await axios.get('https://capstone-final-backend-7dup.onrender.comapi/loans/',{
           headers: {
             'Authorization': `Bearer ${token}`
           }

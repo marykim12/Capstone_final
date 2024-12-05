@@ -165,7 +165,9 @@ SIMPLE_JWT = {
     'TOKEN_BLACKLIST': 'rest_framework_simplejwt.token_blacklist.models.BlacklistedToken'
 }
 
-
+CORS_ALLOWED_ORIGINS = [
+    "https://capstone-final-d2qx.onrender.com"
+    ]
 
 CORS_ALLOW_ALL_ORIGINS = True
 
